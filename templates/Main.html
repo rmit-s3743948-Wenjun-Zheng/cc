@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Main</title>
+    <link rel="stylesheet" href="https://cdn.staticfile.org/twitter-bootstrap/4.3.1/css/bootstrap.min.css">
+    <script src="https://cdn.staticfile.org/jquery/3.2.1/jquery.min.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/toastr.min.css') }}" />
+    <script type=text/javascript src="{{ url_for('static', filename='js/toastr.min.js') }}"></script>
+    <script src="https://cdn.staticfile.org/twitter-bootstrap/4.3.1/js/bootstrap.min.js"></script>
+</head>
+<body>
+    <div class="jumbotron text-center p-3">
+        <p class="display-4" style="font-size: 3rem;">Welcome to main page! {{g.user["User_name"]}}</p>
+        <button type="button" class="btn btn-primary" onclick="Logout()">Logout</button>
+    </div>
+    <div class="form-group">
+        <label for="exampleInputEmail1">Email</label>
+        <input type="email" class="form-control" id="email" placeholder="please enter email">
+    </div>
+    <div style="text-align: center; padding-top: 10px;">
+        <button type="button" class="btn btn-primary" onclick="RegisterEmail()">Register</button>
+    </div>  
+
+    <div style="text-align: center; padding-top: 50px;">
+        <button type="button" class="btn btn-primary" onclick="sendlist()">send list</button>
+    </div>  
+
+    <div style="text-align: center; padding-top: 50px;">
+      <button type="button" class="btn btn-primary" onclick="addfood()">add food</button>
+    </div>  
+
+    <div style="text-align: center; padding-top: 50px;">
+      <button type="button" class="btn btn-primary" onclick="compute()">Compute popular</button>
+    </div>  
+
+    <div style="text-align: center; padding-top: 50px;">
+      <button type="button" class="btn btn-primary" onclick="showpopular()">show popular</button>
+    </div>  
+
+</body>
+
+<script>
+
+    function Logout(){
+        $.ajax({
+          url: "/",
+          type: "POST",
+          contentType: "application/json",
+          success: function(checkresult){
+            console.log("ok")
+            next(checkresult.next)
+          }
+        })
+        
+        function next(url){
+          window.location.href = url
+        }
+    }
+
+    function RegisterEmail(){
+        var data = {
+            "email": $("#email").val()
+        }
+
+        $.ajax({
+          url: "/addemail",
+          type: "POST",
+          data: JSON.stringify(data),
+          dataType: "json",
+          contentType: "application/json",
+          success: function(checkresult){
+            if(checkresult.status == "ok"){
+              toastr.info("please check the email that you input and click link to regist")
+            }
+          }
+        })
+    }
+
+    function sendlist(){
+
+        var foodlist = new Array()
+
+        foodlist.push({"food": "apple","foodtype": "fruit","fat": 10,"calcium": 10})
+        foodlist.push({"food": "tuna","foodtype": "seafood","fat": 20,"calcium": 30})
+
+        var data = {
+            "list":foodlist
+        }
+
+        $.ajax({
+          url: "/sendlist",
+          type: "POST",
+          data: JSON.stringify(data),
+          dataType: "json",
+          contentType: "application/json",
+          success: function(checkresult){
+            if(checkresult.status == "ok"){
+              toastr.info("the food list has already send to your email, please check it in your email")
+            }
+            else if(checkresult.status == "failed"){
+              toastr.error("You must register a email before your want to send list to your email")
+            }
+          }
+        })
+    }
+
+  function addfood(){
+
+    var food = {
+      "food": "",
+      "foodtype": ""
+    }
+
+    $.ajax({
+      url: "/addfood",
+      type: "POST",
+      data: JSON.stringify(food),
+      dataType: "json",
+      contentType: "application/json",
+      success: function(checkresult){
+        if(checkresult.status == "ok"){
+          toastr.info("Succeed to add food into system")
+        }
+        else if (checkresult.status == "failed"){
+          toastr.error("you do not have authority to execute add food operation, only admin can do this")
+        }
+        else if (checkresult.status == "error"){
+          toastr.error(checkresult.message)
+        }
+      }
+    })
+
+  }
+
+  function compute(){
+    $.ajax({
+      url: "/compute",
+      type: "POST",
+      dataType: "json",
+      contentType: "application/json",
+      success: function(checkresult){
+        if(checkresult.status == "ok"){
+          toastr.info("Success to recrive compute request, please wait EMR to finish mapreduce job and see the result")
+        }
+        else if (checkresult.status == "failed"){
+          toastr.error("you do not have authority to execute compute operation, only admin can do this")
+        }
+      }
+    })
+  }
+
+  function showpopular(){
+    $.ajax({
+      url: "/show",
+      type: "POST",
+      dataType: "json",
+      contentType: "application/json",
+      success: function(checkresult){
+        if(checkresult.status == "ok"){
+          toastr.info(checkresult.data)
+        }
+        else if (checkresult.status == "error"){
+          toastr.error("The EMR job is not finish，please wait.")
+        }
+        else if (checkresult.status == "failed"){
+          toastr.error("you do not have authority to see the result, only admin can do this.")
+        }
+      }
+    })
+  }
+
+</script>
+</html>

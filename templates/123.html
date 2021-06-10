@@ -1,0 +1,22 @@
+<html>
+<head></head>
+    <body>
+      <h1  style="text-align:center">Health food list</h1>
+      <table style="text-align:center; width: 100%">
+        <tr>
+          <th>Food</th>
+          <th>FoodType</th>
+          <th>Fat</th>
+          <th>calciumt</th>
+        </tr>
+        {% for result in results %} 
+        <tr>
+          <td>{{result["food"]}}</td>
+          <td>{{result["foodtype"]}}</td>
+          <td>{{result["fat"]}}</td>
+          <td>{{result["calcium"]}}</td>   
+        </tr>
+        {% endfor %}
+      </table>
+    </body>
+</html>

@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<title>Login</title>
+		<link rel="stylesheet" href="https://cdn.staticfile.org/twitter-bootstrap/4.3.1/css/bootstrap.min.css">
+    <script src="https://cdn.staticfile.org/jquery/3.2.1/jquery.min.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/toastr.min.css') }}" />
+    <script type=text/javascript src="{{ url_for('static', filename='js/toastr.min.js') }}"></script>
+    <script src="https://cdn.staticfile.org/twitter-bootstrap/4.3.1/js/bootstrap.min.js"></script>
+	</head>
+	<body>
+    <div class="container">
+      <div class="row"></div>
+      <div class="row align-items-center" style="margin-top: 15%">
+        <div class="col"></div>
+        <div class="col-5">
+          <h1 class="display-4" style="text-align: center;">Login</h1>
+          <form style="padding-left: 20px; padding-right: 20px; padding-top: 10px">
+            <div class="form-group">
+              <label for="exampleInputEmail1">Account</label>
+              <input type="text" class="form-control" id="account" placeholder="please enter account">
+            </div>
+            <div class="form-group">
+              <label for="password">Password</label>
+              <input type="password" class="form-control" id="password" placeholder="please enter password">
+            </div>
+            <div style="text-align: center; padding-top: 10px;">
+              <button type="button" class="btn btn-primary" onclick="login()">Login</button>
+            </div>
+            <p  style="text-align: center; padding-top: 10px;">
+              Have no account？<a href="/register">Register now</a>
+            </p>
+          </form>
+        </div>
+        <div class="col"></div>
+      </div>
+      <div class="row"></div>
+    </div>
+
+    <script>
+      function login(){
+        var logindata = {
+          "Account": $("#account").val(),
+          "password": $("#password").val()
+        }
+
+        $.ajax({
+          url: "/login",
+          type: "POST",
+          data: JSON.stringify(logindata),
+          dataType: "json",
+          contentType: "application/json",
+          success: function(checkresult){
+            if(checkresult.status == "ok"){
+              next(checkresult.next)
+            }
+            else if(checkresult.status == "failed"){
+              toastr.error("email or password is invalid")
+            }
+          }
+        })
+        
+        function next(url){
+          window.location.href = url
+        }
+      }
+    </script>
+
+  </body>
+</html>
