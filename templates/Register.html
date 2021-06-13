@@ -14,7 +14,7 @@
 	<body>
     <div class="container">
       <div class="row"></div>
-      <div class="row align-items-center" style="margin-top: 15%">
+      <div class="row align-items-center" style="margin-top: 12%">
         <div class="col"></div>
         <div class="col-5">
           <h1 class="display-4" style="text-align: center;">Register</h1>
@@ -31,6 +31,23 @@
               <label for="password">Password</label>
               <input type="password" class="form-control" id="password" placeholder="please enter password">
             </div>
+            <div class="form-group">
+              <label for="checkbox">User Authority</label>
+              <div id="checkbox">
+                <div class="form-check form-check-inline">
+                  <input class="form-check-input" type="radio" name="flexRadioDefault" id="flexRadioDefault1" value="Admin">
+                  <label class="form-check-label" for="flexRadioDefault1">
+                    Admin
+                  </label>
+                </div>
+                <div class="form-check form-check-inline">
+                  <input class="form-check-input" type="radio" name="flexRadioDefault" id="flexRadioDefault2" value="Normal" checked>
+                  <label class="form-check-label" for="flexRadioDefault2">
+                    Normal
+                  </label>
+                </div>
+              </div>
+            </div>
             <div style="text-align: center; padding-top: 10px;">
               <button type="button" class="btn btn-primary" onclick="Register()">Register</button>
             </div>
@@ -39,37 +56,52 @@
         <div class="col"></div>
       </div>
       <div class="row"></div>
-    </div>
-
-    <script>
-      function Register(){
-        var registerdata = {
-          "Account": $("#account").val(),
-          "password": $("#password").val(),
-          "username": $("#username").val()
-        }
-
-        $.ajax({
-          url: "/register",
-          type: "POST",
-          data: JSON.stringify(registerdata),
-          dataType: "json",
-          contentType: "application/json",
-          success: function(checkresult){
-            if(checkresult.status == "ok"){
-              next(checkresult.next)
-            }
-            else if(checkresult.status == "failed"){
-              toastr.error("The email already exists")
-            }
+    </div>   
+  </body>
+  <script>
+    function Register(){
+      var checkradio=document.getElementsByName("flexRadioDefault")
+      var selectvalue="";
+      for(var i=0;i<checkradio.length;i++) {
+         if(checkradio[i].checked) {
+            selectvalue=checkradio[i].value; 
           }
-        })
-        
-        function next(url){
-          window.location.href = url
-        }
       }
-    </script>
-        
-    </body>
+
+      console.log(selectvalue)
+      account = $("#account").val(),
+      password =  $("#password").val()
+      username = $("#username").val()
+
+      var registerdata = {
+        "Account": account,
+        "password": password,
+        "username":  username,
+        "Role": selectvalue
+      }
+
+      $.ajax({
+        url: "/register",
+        type: "POST",
+        data: JSON.stringify(registerdata),
+        dataType: "json",
+        contentType: "application/json",
+        success: function(checkresult){
+          if(checkresult.status == "ok"){
+            next(checkresult.next)
+          }
+          else if(checkresult.status == "failed"){
+            toastr.error("The email already exists")
+          }
+          else if(checkresult.status == "No input"){
+            toastr.error("please input all of text field")
+          }
+        }
+      })
+      
+      function next(url){
+        window.location.href = url
+      }
+    }
+  </script>   
 </html>

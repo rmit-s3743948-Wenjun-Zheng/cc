@@ -13,18 +13,8 @@ def before_request():
     g.user = None
     if 'user_id' in session:
         g.user = getuser(session['user_id'])
-        
-@app.route('/', methods=['GET', 'POST']) 
-def root(): 
-    if request.method == "GET":
-        if not g.user:
-            return redirect(url_for("login"))
-        return render_template('Main.html')
-    elif request.method == "POST":
-        session.pop('user_id', None)
-        return jsonify({"next": "/login"})
 
-@app.route('/login', methods=['GET', 'POST']) 
+@app.route('/', methods=['GET', 'POST']) 
 def login(): 
    if request.method == "GET":
        return render_template("Login.html")
@@ -38,7 +28,7 @@ def login():
             session['user_id'] = account
             return jsonify({
                 "status": "ok",
-                "next": "/",
+                "next": "/user",
             })
         else:
             return jsonify({"status": "failed"})
@@ -53,14 +43,19 @@ def Register():
         account = param.get("Account", "")
         password = param.get("password", "")
         username = param.get("username", "")
+        role =  param.get("Role", "")
+        
+        if (account == "") | (password == "") | (username == ""):
+            return jsonify({"status": "No input"})
 
         if checkregister(account):
             return jsonify({"status": "failed"})
         else:
-            putuser(account, username, password)
+            putuser(account, username, password, role)
+            createtable(account)
             return jsonify({
                 "status": "ok",
-                "next": "/login",
+                "next": "/",
             })
 
 @app.route('/addemail', methods=['POST'])
@@ -82,26 +77,25 @@ def sendlist():
                 "status": "failed"
             })
 
-    param = json.loads(request.data.decode("utf-8"))
-    foodlist = param.get("list", "")
+    select = getselectlist(session['user_id'])
 
     table = ""
     totalfat = 0
     totalcalcium = 0
 
-    for food in foodlist:
-        totalfat = totalfat + food["fat"]
-        totalcalcium = totalcalcium + food["calcium"]
+    for food in select:
+        totalfat = totalfat + int(food["fat"])
+        totalcalcium = totalcalcium + int(food["calcium"])
         table=table+"""<tr>
-          <td>""" + str(food["food"]) + """</td>
-          <td>""" + str(food["foodtype"]) + """</td>
-          <td>""" + str(food["fat"]) + """</td>
-          <td>""" + str(food["calcium"]) + """</td>
+          <td>""" + food["food"] + """</td>
+          <td>""" + food["foodtype"] + """</td>
+          <td>""" + food["fat"] + """</td>
+          <td>""" + food["calcium"] + """</td>
         </tr>"""
 
     sendcode(getuser(session['user_id']), table, totalfat, totalcalcium)
      
-    updateinput(session['user_id'], foodlist)
+    updateinput(session['user_id'], select)
 
     return jsonify({
                 "status": "ok"
@@ -110,32 +104,45 @@ def sendlist():
 @app.route('/addfood', methods=['POST'])
 def addfood():
     
-    if(getuser(session['user_id'])["Role"] == "normal"):
+    if(getuser(session['user_id'])["Role"] == "Normal"):
         return jsonify({
                 "status": "failed"
             })
     
-    #get food information from request
-    param = json.loads(request.data.decode("utf-8"))
+    if "image" not in request.files:
+             return jsonify({"status": "No file"})
+    
+    imagepath = "Foodimage/" + request.form.get("foodname") + ".jpg"
+    foodname = request.form.get("foodname") + ", "
+    foodtype =  request.form.get("foodtype")
+    fat =  request.form.get("fat")
+    calcium =  request.form.get("calcium")
+    data = request.files["image"]
 
-    response = putfood()
+    food = {
+        "foodname" : foodname,
+        "foodtype" : foodtype,
+        "fat": fat,
+        "calcium": calcium
+    }
+    putfood(food)
+    addtostorage("wenjun",imagepath, data)
 
-    if (response == "1"):
-        return jsonify({
-            "status": "ok"
-        })
-    else:
-        return jsonify({
-             "status": "error",
-             "message": response
-           })
+    return jsonify({
+        "status": "ok"
+    })
 
 @app.route('/compute', methods=['POST'])
 def compute():
 
-    if(getuser(session['user_id'])["Role"] == "normal"):
+    if(getuser(session['user_id'])["Role"] == "Normal"):
         return jsonify({
                 "status": "failed"
+            })
+
+    if(getuser(session['user_id'])["Email"] == ""):
+        return jsonify({
+                "status": "error"
             })
 
     now = datetime.datetime.now()
@@ -149,37 +156,182 @@ def compute():
              "status": "ok"
            })
 
-@app.route('/show', methods=['POST'])
-def show():
+@app.route('/getfood', methods=['GET'])
+def getfood():
+    foodlist = getfoodlist()
+    list = []
 
-    if(getuser(session['user_id'])["Role"] == "normal"):
-        return jsonify({
-                "status": "failed"
-            })
 
+    for item in foodlist:
+       
+        path = item["food"] + ".jpg"
+        template =  """<li id="messagelist">
+                                <div class="d-flex align-items-center">
+                                    <div class="card mb-3" style="max-width: 600px;">
+                                        <div class="row no-gutters align-items-center">
+                                          <div class="col-md-3">
+                                            <img src= "https://wenjun.s3.amazonaws.com/Foodimage/""" + path + """" class="card-img" alt="Upload image">
+                                          </div>
+                                          <div class="col-md-8">
+                                            <div class="card-body">
+                                              <p class="card-text">Food Name:""" + item["food"] + """</p>
+                                              <p class="card-text">Food Type: """ + item["foodtype"] + """</p>
+                                              <p class="card-text">Total Fat: """ + item["fat"] + """</p>
+                                              <p class="card-text">Total Calcium: """ + item["calcium"] + """</p>
+                                            </div>
+                                          </div>
+                                        </div>
+                                    </div>
+                                    <button type="button" style="margin-left: 5%; margin-right: 3%;" class="btn btn-primary" data-toggle="modal" data-target="#myModal" id="select">
+                                        Select
+                                    </button>
+                                </div>
+                            </li>"""
+        list.append(template)
+
+    return jsonify({"status": "ok", "list": list})
+
+@app.route('/select', methods=['POST']) 
+def select():
+    param = json.loads(request.data.decode("utf-8"))
+    name = param.get("foodname", "")
+    type = param.get("foodtype", "")
+    fat = param.get("totalfat", "")
+    calcium = param.get("totalcalcium", "")
+    food = {"name": name, "type": type, "fat": fat, "calcium": calcium}
+    selectfood(food, session['user_id'])
+    
+    return jsonify({"status": "ok"})
+
+@app.route('/getlist', methods=['GET']) 
+def getlist():
+    select = getselectlist(session['user_id'])
+    list = []
+
+    for item in select:
+       
+        path = item["food"] + ".jpg"
+        template =  """<li id="messagelist">
+                                <div class="d-flex align-items-center">
+                                    <div class="card mb-3" style="max-width: 600px;">
+                                        <div class="row no-gutters align-items-center">
+                                          <div class="col-md-3">
+                                            <img src= "https://wenjun.s3.amazonaws.com/Foodimage/""" + path + """" class="card-img" alt="Upload image">
+                                          </div>
+                                          <div class="col-md-8">
+                                            <div class="card-body">
+                                              <p class="card-text">Food Name:""" + item["food"] + """</p>
+                                              <p class="card-text">Food Type: """ + item["foodtype"] + """</p>
+                                              <p class="card-text">Total Fat: """ + item["fat"] + """</p>
+                                              <p class="card-text">Total Calcium: """ + item["calcium"] + """</p>
+                                            </div>
+                                          </div>
+                                        </div>
+                                    </div>
+                                    <button type="button" style="margin-left: 5%; margin-right: 3%;" class="btn btn-primary" data-toggle="modal" data-target="#myModal" id="remove">
+                                        Remove
+                                    </button>
+                                </div>
+                            </li>"""
+        list.append(template)
+
+    return jsonify({"status": "ok", "list": list})
+
+@app.route('/getpopular', methods=['GET','POST'])
+def getpopular():
     path = "output/" + getpath()["Path"]
-    print(path)
-    list = getlist("assignment-emr", path)
-    if (list == 0):
-         return jsonify({
+    popularlist = getpopularlist("assignment-emr1", path)
+    
+    print(popularlist)
+
+    if (popularlist == 0):
+        return jsonify({
                 "status": "error",
             })
-    
-    else:
-        return jsonify({
-                "status": "ok",
-                "data": list
-            })
-    
-    
+
+    return jsonify({
+        "status": "ok",
+        "list":  popularlist
+    })
+
+@app.route('/remove', methods=['POST']) 
+def remove():
+    param = json.loads(request.data.decode("utf-8"))
+    param = json.loads(request.data.decode("utf-8"))
+    name = param.get("foodname", "")
+    type = param.get("foodtype", "")
+    fat = param.get("totalfat", "")
+    calcium = param.get("totalcalcium", "")
+    food = {"name": name, "type": type, "fat": fat, "calcium": calcium}
+    removefood(food, session['user_id'])
+    return jsonify({"status": "ok"})
+
+@app.route('/foodlist', methods=['GET', 'POST'])
+def foodlist():
+    if request.method == "GET":
+        if not g.user:
+            return redirect(url_for("login"))
+        return render_template('Foodlist.html')
+
+    elif request.method == "POST":
+        session.pop('user_id', None)
+        return jsonify({"next": "/"})
+
+@app.route('/user',methods=['GET', 'POST'])
+def root():
+    if request.method == "GET":
+        if not g.user:
+            return redirect(url_for("login"))
+        current = getuser(session['user_id'])
+        message = ""
+
+        if (current["Email"] == ""):
+            message = "You do not regist any email, please click register email button"
+        else:
+            message = "Your Regist Email: " + current["Email"]
+        
+        return render_template("User.html", message=message)
+    elif request.method == "POST":
+        session.pop('user_id', None)
+        return jsonify({"next": "/"})
+
+@app.route('/email', methods=['GET', 'POST'])
+def email():
+    if request.method == "GET":
+        if not g.user:
+            return redirect(url_for("login"))
+        return render_template('Email.html')
+    elif request.method == "POST":
+        session.pop('user_id', None)
+        return jsonify({"next": "/"})
+
+@app.route('/add', methods=['GET', 'POST'])
+def add():
+    if request.method == "GET":
+        if not g.user:
+            return redirect(url_for("login"))
+        return render_template('Add.html')
+    elif request.method == "POST":
+        session.pop('user_id', None)
+        return jsonify({"next": "/"})
+
+
+@app.route('/popular')
+def popular():
+    if request.method == "GET":
+        if not g.user:
+            return redirect(url_for("login"))
+        return render_template('Popular.html')
+    elif request.method == "POST":
+        session.pop('user_id', None)
+        return jsonify({"next": "/"})
+
 
 # example test
 @app.route('/123')
 def example():
-
-    return render_template("123.html", results=[{"food": "apple","foodtype": "fruit","fat": 10,"calcium": 10},{"food": "tuna","foodtype": "seafood","fat": 20,"calcium": 30}])
-
-
+    list = getfood()
+    return render_template("login.html", results=list)
       
 if __name__ == '__main__':
     # This is used when running locally only. When deploying to Google App

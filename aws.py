@@ -7,7 +7,7 @@ from boto3.dynamodb.conditions import Key, Attr
 import json
 from botocore.exceptions import ClientError
 import requests
-
+import re
 
 aws_access_key_id = "AKIAUXLAEQROAIDMKDGU"
 aws_secret_access_key = "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"
@@ -20,8 +20,46 @@ dynamodb = boto3.resource("dynamodb",aws_access_key_id=aws_access_key_id,
     aws_secret_access_key=aws_secret_access_key, region_name=region)
 s3 = boto3.resource("s3",aws_access_key_id=aws_access_key_id,
     aws_secret_access_key=aws_secret_access_key, region_name=region)
+s3client = boto3.client("s3",aws_access_key_id=aws_access_key_id,
+    aws_secret_access_key=aws_secret_access_key, region_name=region)
 SES = boto3.client('ses',aws_access_key_id=aws_access_key_id,
     aws_secret_access_key=aws_secret_access_key, region_name=region)
+news3 = boto3.resource("s3",aws_access_key_id="AKIAZGL25W4TRFCEHA7H",
+    aws_secret_access_key="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", region_name="us-east-1")
+
+# get food from DB
+def getfoodlist():
+    table = dynamodb.Table("healthfood")
+    response = table.scan()
+    data = response['Items']
+    list = []
+
+    for item in data:
+        food = {}
+        food["food"] = item["Food and Serving"].split(",")[0]
+        food["foodtype"] = item["Food Type"]
+        food["fat"] = item["Total Fat"]
+        food["calcium"] = item["Calcium"]
+        list.append(food)
+
+    return list
+
+# get user select from DB
+def getselectlist(table):
+    table = dynamodb.Table(table)
+    response = table.scan()
+    data = response['Items']
+    list = []
+
+    for item in data:
+        food = {}
+        food["food"] = item["Food Name"]
+        food["foodtype"] = item["Food Type"]
+        food["fat"] = item["Fat"]
+        food["calcium"] = item["Calcium"]
+        list.append(food)
+
+    return list
 
 # check user login 
 def checklogin(email, password):
@@ -57,7 +95,7 @@ def checkregister(account):
         return True
 
 #put new user into DB
-def putuser(account, user_name, password):
+def putuser(account, user_name, password, role):
     table = dynamodb.Table("User") 
         
     table.put_item(
@@ -65,7 +103,8 @@ def putuser(account, user_name, password):
             "Account": account,
             "Password": password,
             "User_name": user_name,
-            "Email":""
+            "Role": role,
+            "Email": ""
         }
     )
 
@@ -122,7 +161,7 @@ def sendcode(user, list, fat, calcium):
     CHARSET = "UTF-8"
 
     try: 
-         #Provide the contents of the email.
+        #Provide the contents of the email.
         response = SES.send_email(
             Destination={
                 'ToAddresses': [
@@ -155,29 +194,27 @@ def sendcode(user, list, fat, calcium):
          print(response['MessageId'])
 
 # put new food into DB with API and lambda
-def putfood():
+def putfood(food):
 
-    url = ' https://7ubc2ypcqe.execute-api.us-east-1.amazonaws.com/prod/DynamoDBManager'
+    url = 'https://7ubc2ypcqe.execute-api.us-east-1.amazonaws.com/prod/DynamoDBManager'
     
     data = { 
 
        "operation": "create",
 
-       "tableName": "User",
+       "tableName": "healthfood",
        
        "payload": {
            
            "Item": {
                
-               "Account": "123",
+               "Food and Serving": food["foodname"],
                
-               "User_name": "Wen",
+               "Food Type": food["foodtype"],
 
-               "Email": "1323@qq.com",
+               "Total Fat": food["fat"],
 
-               "Password": "123456",
-
-               "Role": "normal"
+               "Calcium": food["calcium"],
             }
         }
     }
@@ -188,21 +225,21 @@ def putfood():
 # use api to trigger lambda to create a cluster and run mapreduce program on EMR
 def EMRcompute(output):
 
-
-    url = "https://7ubc2ypcqe.execute-api.us-east-1.amazonaws.com/prod/compute"
+    url = "https://f4d5haheha.execute-api.us-east-1.amazonaws.com/prod/compute"
 
     data = {
         "output": output
     }
 
     response = requests.post(url=url, data=json.dumps(data))
+    print(response.text)
 
 # get s3 path 
-def getlist(bucket_name, prefix):
+def getpopularlist(bucket_name, prefix):
 
     try:
         bucket=bucket_name
-        my_bucket = s3.Bucket(bucket)
+        my_bucket = news3.Bucket(bucket)
         prefix_objs = my_bucket.objects.filter(Prefix=prefix)
         Dict = {}
         list = []
@@ -239,11 +276,12 @@ def updateinput(user, foodlist):
 
     str1 = ""
     for item in foodlist:
-        str1 = str1 + user + " select " + item["food"] + "\n"
+        foodname =  re.sub(u"([^\u4e00-\u9fa5\u0030-\u0039\u0041-\u005a\u0061-\u007a])","", item["food"])
+        str1 = str1 + user + " select " + foodname + "\n"
 
     binary_data = str1.encode(encoding="utf-8")
 
-    object = s3.Object('assignment-emr', 'Input/input.txt')
+    object = news3.Object('assignment-emr1', 'Input/input.txt')
     origion =object.get()['Body'].read()
     new = origion +  binary_data 
 
@@ -298,6 +336,69 @@ def getpath():
         KeyConditionExpression=Key('Account').eq("current")
     )
     return response["Items"][0]
+
+# store select food
+def selectfood(food, account):
+    sub = re.sub(u"([^\u4e00-\u9fa5\u0030-\u0039\u0041-\u005a\u0061-\u007a])","", account)
+    table = dynamodb.Table(sub) 
+
+    table.put_item(
+        Item = {
+            "Food Name": food["name"],
+            "Food Type": food["type"],
+            "Fat": food["fat"],
+            "Calcium": food["calcium"],
+        }
+    )
+
+# remove the select food
+def removefood(food, account):
+    sub = re.sub(u"([^\u4e00-\u9fa5\u0030-\u0039\u0041-\u005a\u0061-\u007a])","", account)
+    table = dynamodb.Table(sub) 
+    table.delete_item(
+        Key={
+            "Food Name": food["name"],
+            "Food Type": food["type"],
+        }
+    )
+
+# upload image to s3
+def addtostorage(bucket_name, blob_name, file):
+    s3client.upload_fileobj(file,bucket_name,blob_name,ExtraArgs = { 'ACL' : 'public-read' } )
+
+# create the user table for select food list
+def createtable(account):
+    sub = re.sub(u"([^\u4e00-\u9fa5\u0030-\u0039\u0041-\u005a\u0061-\u007a])","", account)
+    dynamodb.create_table(
+        TableName = sub,
+        KeySchema = [
+            {
+                'AttributeName': 'Food Name',
+                'KeyType': 'HASH'
+            },
+            {
+                'AttributeName': 'Food Type',
+                'KeyType': 'RANGE'
+            }
+        ],
+        AttributeDefinitions=[
+            {
+                'AttributeName': 'Food Name',
+                'AttributeType': 'S'
+            },
+            {
+                'AttributeName': 'Food Type',
+                'AttributeType': 'S'
+            },
+        ],
+        ProvisionedThroughput={
+            'ReadCapacityUnits': 10,
+            'WriteCapacityUnits': 10
+        }
+    )
+
+
+
 
         
 

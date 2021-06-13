@@ -1,22 +1,136 @@
-<html>
-<head></head>
-    <body>
-      <h1  style="text-align:center">Health food list</h1>
-      <table style="text-align:center; width: 100%">
-        <tr>
-          <th>Food</th>
-          <th>FoodType</th>
-          <th>Fat</th>
-          <th>calciumt</th>
-        </tr>
-        {% for result in results %} 
-        <tr>
-          <td>{{result["food"]}}</td>
-          <td>{{result["foodtype"]}}</td>
-          <td>{{result["fat"]}}</td>
-          <td>{{result["calcium"]}}</td>   
-        </tr>
-        {% endfor %}
-      </table>
-    </body>
-</html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Main</title>
+    <link rel="stylesheet" href="https://cdn.staticfile.org/twitter-bootstrap/4.3.1/css/bootstrap.min.css">
+    <script src="https://cdn.staticfile.org/jquery/3.2.1/jquery.min.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/toastr.min.css') }}" />
+    <script type=text/javascript src="{{ url_for('static', filename='js/toastr.min.js') }}"></script>
+    <script src="https://cdn.staticfile.org/twitter-bootstrap/4.3.1/js/bootstrap.min.js"></script>
+
+    <style>
+      .bd-placeholder-img {
+        font-size: 1.125rem;
+        text-anchor: middle;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        user-select: none;
+      }
+
+      @media (min-width: 768px) {
+        .bd-placeholder-img-lg {
+          font-size: 3.5rem;
+        }
+      }
+    </style>
+    <!-- Custom styles for this template -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/navbar.css') }}" />
+</head>
+
+<body></body>
+          
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+<button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarsExample08" aria-controls="navbarsExample08" aria-expanded="false" aria-label="Toggle navigation">
+  <span class="navbar-toggler-icon"></span>
+</button>
+
+<div class="collapse navbar-collapse justify-content-md-center" id="navbarsExample08">
+  <ul class="navbar-nav">
+    <li class="nav-item active">
+      <a class="nav-link" href="#">Main Page<span class="sr-only">(current)</span></a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" href="#">Register</a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" href="#">Add food</a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" href="#">Popular food</a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" href="#">Logout</a>
+    </li>
+  </ul>
+</div>
+</nav>
+
+<main role="main">
+  <div class="row">
+    <div class="col-sm-6">
+        <h3 style="text-align: center;">User select</h3>
+        <div class="row" style="max-height: 400px; overflow-y:scroll; margin-left: 0px; margin-top: 5%; ">
+            <ol class="list-group"  id="selectlist" style="list-style: none;">
+          
+            </ol>
+        </div>
+    </div>
+    <div class="col-sm-6">
+        <h3 style="text-align: center;">Food List</h3>
+        <div class="d-flex mb-3 align-items-center">
+        </div>
+        <div class="row" style="max-height: 80%; overflow-y:scroll; margin-left: 100px;">
+            <ol class="list-group"  id="foodlist" style="padding-left: 8px; list-style: none;">
+          
+            </ol>
+        </div>
+    </div>
+</div>
+</div>
+</main>
+</div>
+<script>
+
+  $(document).ready(function(){
+        getsubscribelist()
+    })
+
+  function getsubscribelist(){
+        $("#foodlist").empty()
+
+        $.ajax({
+            url: "/getfood",
+            type: "get",
+            success: function(result){
+                $.each(result.list, function(index){
+                    $("#foodlist").append(result.list[index]).append("<br>")
+                })
+            }
+        })
+    }
+
+    $(function(){
+        $("#querylist").on("click", "#subscribe", function(){
+            var index =  $(this).closest('li').text()
+            var resultStr=index.replace(/\ +/g,"@");
+            var o = resultStr.split("\n")    
+            title = o[9].substring(8).replace(/@/g, " ")
+            artist = o[10].substring(8).replace(/@/g, " ")
+            year = (o[11].substring(6))
+
+            var data = {
+                "title": title,
+                "artist": artist,
+                "year": year
+            }
+
+            $.ajax({
+                url: "/subscribe",
+                type: "POST",
+                data: JSON.stringify(data),
+                dataType: "json",
+                contentType: "application/json",
+                success: function(result){
+                    getsubscribelist()
+                }
+            })
+        })
+    })
+
+</script>
+</body></html>

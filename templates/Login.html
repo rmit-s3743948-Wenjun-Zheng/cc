@@ -42,13 +42,25 @@
 
     <script>
       function login(){
+
+        account = $("#account").val(),
+        password =  $("#password").val()
+
+        if(account == ""){
+          account = "No any input123456"
+        }
+
+        if(password == ""){
+          password = "No any input123456"
+        }
+
         var logindata = {
-          "Account": $("#account").val(),
-          "password": $("#password").val()
+          "Account": account,
+          "password": password
         }
 
         $.ajax({
-          url: "/login",
+          url: "/",
           type: "POST",
           data: JSON.stringify(logindata),
           dataType: "json",
